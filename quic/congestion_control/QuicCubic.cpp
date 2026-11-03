@@ -159,7 +159,7 @@ void Cubic::onPacketLoss(const LossEvent& loss) {
   // as it was already accounted for in a recovery period.
   if (startsNewRecovery) {
     recoveryState_.endOfRecovery = Clock::now();
-    cubicReduction(loss.lossTime);
+    cubicReduction(loss.lossTime, steadyState_.reductionFactor);
     if (state_ == CubicStates::Hystart || state_ == CubicStates::Steady) {
       state_ = CubicStates::FastRecovery;
     }
@@ -490,7 +490,9 @@ uint64_t Cubic::calculateCubicCwnd(int64_t delta) noexcept {
   }
 }
 
-void Cubic::cubicReduction(TimePoint lossTime) noexcept {
+void Cubic::cubicReduction(
+    TimePoint lossTime,
+    float reductionFactor) noexcept {
   if (cwndBytes_ >= steadyState_.lastMaxCwndBytes.value_or(cwndBytes_)) {
     steadyState_.lastMaxCwndBytes = cwndBytes_;
   } else {
@@ -501,7 +503,7 @@ void Cubic::cubicReduction(TimePoint lossTime) noexcept {
   }
   steadyState_.lastReductionTime = lossTime;
   cwndBytes_ = boundedCwnd(
-      cwndBytes_ * steadyState_.reductionFactor,
+      cwndBytes_ * reductionFactor,
       conn_.udpSendPacketLen,
       conn_.transportSettings.maxCwndInMss,
       conn_.transportSettings.minCwndInMss);
@@ -526,6 +528,12 @@ void Cubic::onPacketAckOrLoss(
   }
   if (ackEvent && ackEvent->largestNewlyAckedPacket.has_value()) {
     MVCHECK(!ackEvent->ackedPackets.empty());
+    // React to ECN-CE marks before the normal ack processing. This must come
+    // first: onPacketAcked() returns early for acks of packets sent before the
+    // end of recovery, and the state handlers never see the ECN signal while in
+    // FastRecovery. Running first also lets this same ack be skipped by that
+    // early return, just like an ack that follows a loss-triggered reduction.
+    onClassicEcnCongestionEvent(*ackEvent);
     onPacketAcked(*ackEvent);
   }
 }
@@ -1028,6 +1036,98 @@ void Cubic::onEcnCongestionEvent(const AckEvent& ack) {
     }
   }
   lastCECount_ = ack.ecnCECount;
+}
+
+void Cubic::onClassicEcnCongestionEvent(const AckEvent& ack) {
+  const float ecnFactor =
+      conn_.transportSettings.ccaConfig.cubicEcnReductionFactor;
+  // Only react when explicitly enabled, ECN is validated (RFC 9002 section 7.1)
+  // and the ack is for the application data space. lastCECount_ is a single
+  // counter, but the ECN counts in ACK frames are per packet number space.
+  // L4S has its own response in onEcnCongestionEvent() and returns here because
+  // ecnState is ValidatedL4S, not ValidatedECN.
+  if (ecnFactor < 0.0f || conn_.ecnState != ECNState::ValidatedECN ||
+      ack.packetNumberSpace != PacketNumberSpace::AppData ||
+      ack.ecnCECount <= lastCECount_) {
+    return;
+  }
+  lastCECount_ = ack.ecnCECount;
+
+  // At most one reduction per congestion event (RFC 9002 B.6): a CE mark for a
+  // packet sent before the current recovery period began is part of the event
+  // we already reacted to.
+  if (recoveryState_.endOfRecovery.has_value() &&
+      !isRecovered(ack.largestNewlyAckedPacketSentTime)) {
+    QLOG(
+        conn_,
+        addCongestionStateUpdate,
+        std::nullopt,
+        cubicStateToString(state_).str(),
+        kCubicSkipEcn);
+    return;
+  }
+
+  // ECN is a congestion signal, not a loss: an undo of a prior spurious loss
+  // must not restore a cwnd above this reduction.
+  invalidateSpuriousLossUndo();
+  quiescenceStart_.reset();
+
+  // RFC 8511 section 4: ABE is meant for congestion avoidance. It is not
+  // recommended while cwnd <= ssthresh (slow start), so Hystart keeps the
+  // regular loss reduction factor.
+  const float factor = state_ == CubicStates::Hystart
+      ? steadyState_.reductionFactor
+      : ecnFactor;
+
+  QLOG(
+      conn_,
+      addMetricUpdate,
+      conn_.lossState.lrtt,
+      conn_.lossState.mrtt,
+      conn_.lossState.srtt,
+      conn_.lossState.maybeLrttAckDelay.value_or(0us),
+      conn_.lossState.rttvar,
+      getCongestionWindow(),
+      conn_.lossState.inflightBytes,
+      ssthresh_ == std::numeric_limits<uint64_t>::max()
+          ? std::nullopt
+          : Optional<uint64_t>(ssthresh_),
+      std::nullopt,
+      std::nullopt,
+      conn_.lossState.ptoCount);
+
+  const auto stateBefore = state_;
+  recoveryState_.endOfRecovery = Clock::now();
+  cubicReduction(ack.ackTime, factor);
+  state_ = CubicStates::FastRecovery;
+  // onPacketAckedInRecovery() asserts cwnd == ssthresh.
+  ssthresh_ = cwndBytes_;
+  if (conn_.pacer) {
+    conn_.pacer->refreshPacingRate(
+        cwndBytes_ * pacingGain(), conn_.lossState.srtt);
+  }
+  QLOG(
+      conn_,
+      addMetricUpdate,
+      conn_.lossState.lrtt,
+      conn_.lossState.mrtt,
+      conn_.lossState.srtt,
+      conn_.lossState.maybeLrttAckDelay.value_or(0us),
+      conn_.lossState.rttvar,
+      getCongestionWindow(),
+      conn_.lossState.inflightBytes,
+      ssthresh_ == std::numeric_limits<uint64_t>::max()
+          ? std::nullopt
+          : Optional<uint64_t>(ssthresh_),
+      std::nullopt,
+      std::nullopt,
+      conn_.lossState.ptoCount);
+  QLOG(
+      conn_,
+      addCongestionStateUpdate,
+      cubicStateToString(stateBefore).str(),
+      cubicStateToString(state_).str(),
+      kCubicEcn);
 }
 
 void Cubic::getStats(CongestionControllerStats& stats) const {

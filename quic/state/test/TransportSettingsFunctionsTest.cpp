@@ -118,6 +118,24 @@ TEST_F(TransportSettingsFunctionsTest, FullConfig) {
   EXPECT_EQ(config.ackFrequencyConfig->useSmallThresholdDuringStartup, true);
 }
 
+TEST_F(TransportSettingsFunctionsTest, CubicEcnReductionFactor) {
+  // Not specified: stays at the "disabled" default.
+  EXPECT_EQ(parseCongestionControlConfig("{}").cubicEcnReductionFactor, -1.0f);
+
+  // ABE value is accepted.
+  auto config =
+      parseCongestionControlConfig("{\"cubicEcnReductionFactor\": 0.85}");
+  EXPECT_EQ(config.cubicEcnReductionFactor, 0.85f);
+
+  // Out of the [0.5, 1.0] range is rejected.
+  EXPECT_THROW(
+      parseCongestionControlConfig("{\"cubicEcnReductionFactor\": 0.3}"),
+      std::range_error);
+  EXPECT_THROW(
+      parseCongestionControlConfig("{\"cubicEcnReductionFactor\": 1.5}"),
+      std::range_error);
+}
+
 TEST_F(TransportSettingsFunctionsTest, UnspecifiedFieldsAreDefaulted) {
   std::string testString =
       "{"

@@ -129,11 +129,20 @@ class Cubic : public CongestionController {
 
   void onEcnCongestionEvent(const AckEvent& ack);
 
+  // Classic ECN response (RFC 9002 section 7.1) with Alternative Backoff with
+  // ECN (RFC 8511): reduces cwnd by ccaConfig.cubicEcnReductionFactor when the
+  // peer's reported CE count increases. No-op unless ECN is validated and the
+  // factor is configured.
+  void onClassicEcnCongestionEvent(const AckEvent& ack);
+
   [[nodiscard]] float pacingGain() const noexcept;
 
   void startHystartRttRound(TimePoint time) noexcept;
 
-  void cubicReduction(TimePoint lossTime) noexcept;
+  // Reduces cwnd by reductionFactor (beta) and records the reduction point for
+  // the cubic curve. Loss uses steadyState_.reductionFactor; ECN may use a
+  // different beta (ABE).
+  void cubicReduction(TimePoint lossTime, float reductionFactor) noexcept;
   void updateTimeToOrigin() noexcept;
   int64_t calculateCubicCwndDelta(TimePoint timePoint) noexcept;
   uint64_t calculateCubicCwnd(int64_t delta) noexcept;

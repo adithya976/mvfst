@@ -578,6 +578,13 @@ constexpr float kDefaultLastMaxReductionFactor = 0.85f;
 // Factor to control TCP estimate cwnd increase after Ack.
 constexpr float kCubicTCPFriendlyEstimateIncreaseFactor =
     3 * (1 - kDefaultCubicReductionFactor) / (1 + kDefaultCubicReductionFactor);
+// Alternative Backoff with ECN (RFC 8511): the cwnd reduction factor
+// (beta_ecn) Cubic applies when it reacts to an ECN-CE mark instead of a loss.
+// RFC 8511 section 3.1 reports that CUBIC benefits from beta_ecn = 0.85
+// (compared with beta_loss = 0.7). This is intentionally a separate constant
+// from kDefaultLastMaxReductionFactor, which happens to have the same value but
+// is a different concept (W_max fast convergence).
+constexpr float kCubicAbeReductionFactor = 0.85f;
 
 /* BBR2 */
 // Gain override validation bounds. Gains are bandwidth/cwnd multipliers;

@@ -577,6 +577,8 @@ class TPerfServer {
       bool sendDraft02AckReceiveTimestamps,
       uint32_t maxAckReceiveTimestampsToSend,
       bool useL4sEcn,
+      bool useEcn,
+      float cubicEcnReductionFactor,
       bool readEcn,
       uint32_t dscp,
       uint32_t numServerWorkers,
@@ -610,6 +612,8 @@ class TPerfServer {
   bool sendDraft02AckReceiveTimestamps_{true};
   uint32_t maxAckReceiveTimestampsToSend_;
   bool useL4sEcn_{false};
+  bool useEcn_{false};
+  float cubicEcnReductionFactor_{-1.0f};
   bool readEcn_{false};
   uint32_t dscp_;
   uint32_t numServerWorkers_;

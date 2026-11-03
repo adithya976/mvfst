@@ -135,6 +135,18 @@ DEFINE_uint32(
     "(applies to both legacy and draft-02 advertisements).");
 DEFINE_bool(use_l4s_ecn, false, "Whether to use L4S for ECN marking");
 DEFINE_bool(
+    use_ecn,
+    false,
+    "Whether to mark outgoing packets as ECN-capable (ECT(0)) for classic ECN. "
+    "Server only; the client needs --read_ecn to echo CE marks. Ignored if "
+    "--use_l4s_ecn is set.");
+DEFINE_double(
+    cubic_ecn_reduction_factor,
+    -1.0,
+    "Cubic: cwnd reduction factor (beta_ecn) applied on an ECN-CE mark when "
+    "ECN is validated. < 0 (default) disables the ECN response, 0.7 is classic "
+    "ECN, 0.85 is Alternative Backoff with ECN (RFC 8511). Range [0.5, 1.0].");
+DEFINE_bool(
     read_ecn,
     false,
     "Whether to read and echo ecn marking from ingress packets");
@@ -388,6 +400,8 @@ int main(int argc, char* argv[]) {
         FLAGS_send_draft02_ack_receive_timestamps,
         FLAGS_max_ack_receive_timestamps_to_send,
         FLAGS_use_l4s_ecn,
+        FLAGS_use_ecn,
+        static_cast<float>(FLAGS_cubic_ecn_reduction_factor),
         FLAGS_read_ecn,
         FLAGS_dscp,
         FLAGS_num_server_worker,
