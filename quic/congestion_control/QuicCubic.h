@@ -129,9 +129,10 @@ class Cubic : public CongestionController {
 
   void onEcnCongestionEvent(const AckEvent& ack);
 
-  // Classic ECN response (RFC 9002 section 7.1): reduces cwnd by
+  // Classic ECN response (RFC 9002 section 7.1) with optional Alternative
+  // Backoff with ECN (RFC 8511): reduces cwnd by
   // ccaConfig.cubicEcnReductionFactor when the peer's reported CE count
-  // increases. No-op unless ECN is validated and the factor is configured.
+  // increases. No-op unless ECN is validated and the factor is non-negative.
   void onClassicEcnCongestionEvent(const AckEvent& ack);
 
   [[nodiscard]] float pacingGain() const noexcept;
@@ -140,7 +141,7 @@ class Cubic : public CongestionController {
 
   // Reduces cwnd by reductionFactor (beta) and records the reduction point for
   // the cubic curve. Loss uses steadyState_.reductionFactor; ECN uses
-  // ccaConfig.cubicEcnReductionFactor.
+  // ccaConfig.cubicEcnReductionFactor (0.85 with ABE), except in slow start.
   void cubicReduction(TimePoint lossTime, float reductionFactor) noexcept;
   void updateTimeToOrigin() noexcept;
   int64_t calculateCubicCwndDelta(TimePoint timePoint) noexcept;

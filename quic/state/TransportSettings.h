@@ -134,7 +134,11 @@ struct CongestionControlConfig {
   // ECN has been validated (ECNState::ValidatedECN); the L4S response above is
   // separate and unaffected.
   //   value = 0.7 (default): classic ECN, same backoff as loss (RFC 3168).
+  //   value = 0.85:          Alternative Backoff with ECN (RFC 8511), see
+  //                          kCubicAbeReductionFactor.
   //   value < 0:             ECN-CE marks do not change cwnd.
+  // Slow start (Hystart) always uses the loss reduction factor, since RFC 8511
+  // does not recommend ABE while cwnd <= ssthresh.
   float cubicEcnReductionFactor{kDefaultCubicReductionFactor};
 
   // Used by: BBR2

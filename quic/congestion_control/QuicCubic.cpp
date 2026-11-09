@@ -1072,6 +1072,13 @@ void Cubic::onClassicEcnCongestionEvent(const AckEvent& ack) {
   invalidateSpuriousLossUndo();
   quiescenceStart_.reset();
 
+  // RFC 8511 section 4: ABE is meant for congestion avoidance. It is not
+  // recommended while cwnd <= ssthresh (slow start), so Hystart keeps the
+  // regular loss reduction factor.
+  const float factor = state_ == CubicStates::Hystart
+      ? steadyState_.reductionFactor
+      : ecnFactor;
+
   QLOG(
       conn_,
       addMetricUpdate,
@@ -1091,7 +1098,7 @@ void Cubic::onClassicEcnCongestionEvent(const AckEvent& ack) {
 
   const auto stateBefore = state_;
   recoveryState_.endOfRecovery = Clock::now();
-  cubicReduction(ack.ackTime, ecnFactor);
+  cubicReduction(ack.ackTime, factor);
   state_ = CubicStates::FastRecovery;
   // onPacketAckedInRecovery() asserts cwnd == ssthresh.
   ssthresh_ = cwndBytes_;
