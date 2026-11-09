@@ -1017,6 +1017,7 @@ TPerfServer::TPerfServer(
     bool sendDraft02AckReceiveTimestamps,
     uint32_t maxAckReceiveTimestampsToSend,
     bool useL4sEcn,
+    bool useEcn,
     bool readEcn,
     uint32_t dscp,
     uint32_t numServerWorkers,
@@ -1045,6 +1046,7 @@ TPerfServer::TPerfServer(
       sendDraft02AckReceiveTimestamps_(sendDraft02AckReceiveTimestamps),
       maxAckReceiveTimestampsToSend_(maxAckReceiveTimestampsToSend),
       useL4sEcn_(useL4sEcn),
+      useEcn_(useEcn),
       readEcn_(readEcn),
       dscp_(dscp),
       numServerWorkers_(numServerWorkers),
@@ -1097,6 +1099,10 @@ TPerfServer::TPerfServer(
     settings.minBurstPackets = 1;
     settings.ccaConfig.onlyGrowCwndWhenLimited = true;
     settings.ccaConfig.leaveHeadroomForCwndLimited = true;
+  } else if (useEcn_) {
+    // Classic ECN: mark packets ECT(0). Before this, tperf could only enable
+    // ECN marking through the L4S (ECT(1)) path.
+    settings.enableEcnOnEgress = true;
   }
 
   settings.readEcnOnIngress = readEcn_;

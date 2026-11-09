@@ -135,6 +135,12 @@ DEFINE_uint32(
     "(applies to both legacy and draft-02 advertisements).");
 DEFINE_bool(use_l4s_ecn, false, "Whether to use L4S for ECN marking");
 DEFINE_bool(
+    use_ecn,
+    false,
+    "Whether to mark outgoing packets as ECN-capable (ECT(0)) for classic ECN. "
+    "Server only; the client needs --read_ecn to echo CE marks. Ignored if "
+    "--use_l4s_ecn is set.");
+DEFINE_bool(
     read_ecn,
     false,
     "Whether to read and echo ecn marking from ingress packets");
@@ -388,6 +394,7 @@ int main(int argc, char* argv[]) {
         FLAGS_send_draft02_ack_receive_timestamps,
         FLAGS_max_ack_receive_timestamps_to_send,
         FLAGS_use_l4s_ecn,
+        FLAGS_use_ecn,
         FLAGS_read_ecn,
         FLAGS_dscp,
         FLAGS_num_server_worker,
