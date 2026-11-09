@@ -128,6 +128,15 @@ struct CongestionControlConfig {
   // bursts
   float l4sCETarget{0.0f};
 
+  // Used by: Cubic
+  // Enables the classic (RFC 9002 section 7.1) response to ECN-CE marks and
+  // sets the cwnd reduction factor (beta_ecn) used for it. Applies only when
+  // ECN has been validated (ECNState::ValidatedECN); the L4S response above is
+  // separate and unaffected.
+  //   value = 0.7 (default): classic ECN, same backoff as loss (RFC 3168).
+  //   value < 0:             ECN-CE marks do not change cwnd.
+  float cubicEcnReductionFactor{kDefaultCubicReductionFactor};
+
   // Used by: BBR2
   // If 0.5 <= values <= 1.0, use this value to scale down bandwidthShortTerm in
   // the short-term model. Otherwise, use the default kBeta

@@ -104,7 +104,7 @@ quic::CongestionControlConfig parseCongestionControlConfig(
     float maxVal;
   };
 
-  const std::array<FloatFieldWithBounds, 4> floatFields = {{
+  const std::array<FloatFieldWithBounds, 5> floatFields = {{
       {.name = "overrideCruisePacingGain",
        .field = ccaConfig.overrideCruisePacingGain,
        .minVal = kMinGainOverride,
@@ -119,6 +119,10 @@ quic::CongestionControlConfig parseCongestionControlConfig(
        .maxVal = kMaxGainOverride},
       {.name = "overrideBwShortBeta",
        .field = ccaConfig.overrideBwShortBeta,
+       .minVal = 0.5f,
+       .maxVal = 1.0f},
+      {.name = "cubicEcnReductionFactor",
+       .field = ccaConfig.cubicEcnReductionFactor,
        .minVal = 0.5f,
        .maxVal = 1.0f},
   }};
