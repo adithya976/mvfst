@@ -1018,6 +1018,7 @@ TPerfServer::TPerfServer(
     uint32_t maxAckReceiveTimestampsToSend,
     bool useL4sEcn,
     bool useEcn,
+    bool useAbe,
     bool readEcn,
     uint32_t dscp,
     uint32_t numServerWorkers,
@@ -1047,6 +1048,7 @@ TPerfServer::TPerfServer(
       maxAckReceiveTimestampsToSend_(maxAckReceiveTimestampsToSend),
       useL4sEcn_(useL4sEcn),
       useEcn_(useEcn),
+      useAbe_(useAbe),
       readEcn_(readEcn),
       dscp_(dscp),
       numServerWorkers_(numServerWorkers),
@@ -1099,10 +1101,14 @@ TPerfServer::TPerfServer(
     settings.minBurstPackets = 1;
     settings.ccaConfig.onlyGrowCwndWhenLimited = true;
     settings.ccaConfig.leaveHeadroomForCwndLimited = true;
-  } else if (useEcn_) {
+  } else if (useEcn_ || useAbe_) {
     // Classic ECN: mark packets ECT(0). Before this, tperf could only enable
-    // ECN marking through the L4S (ECT(1)) path.
+    // ECN marking through the L4S (ECT(1)) path. ABE needs CE marks to act on,
+    // so --use_abe implies --use_ecn.
     settings.enableEcnOnEgress = true;
+    if (useAbe_) {
+      settings.ccaConfig.cubicEcnReductionFactor = kCubicAbeReductionFactor;
+    }
   }
 
   settings.readEcnOnIngress = readEcn_;

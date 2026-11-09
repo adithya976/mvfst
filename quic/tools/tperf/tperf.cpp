@@ -141,6 +141,12 @@ DEFINE_bool(
     "Server only; the client needs --read_ecn to echo CE marks. Ignored if "
     "--use_l4s_ecn is set.");
 DEFINE_bool(
+    use_abe,
+    false,
+    "Cubic: use Alternative Backoff with ECN (RFC 8511), i.e. back off by 0.85 "
+    "instead of 0.7 on ECN-CE marks. Implies --use_ecn. Server only; the "
+    "client needs --read_ecn. Ignored if --use_l4s_ecn is set.");
+DEFINE_bool(
     read_ecn,
     false,
     "Whether to read and echo ecn marking from ingress packets");
@@ -395,6 +401,7 @@ int main(int argc, char* argv[]) {
         FLAGS_max_ack_receive_timestamps_to_send,
         FLAGS_use_l4s_ecn,
         FLAGS_use_ecn,
+        FLAGS_use_abe,
         FLAGS_read_ecn,
         FLAGS_dscp,
         FLAGS_num_server_worker,
